@@ -14,6 +14,7 @@
     #define SEPARATOR_REGEX_GEN_FR "(De|À|Envoyé|Objet|Cc|Cci) ?(&nbsp;:|:) ?"
     #define SEPARATOR_REGEX_STA_ALL "(De|From) ?(&nbsp;:|:) ?"
     #define SEPARATOR_REGEX_END_ALL "(Objet|Subject) ?(&nbsp;:|:) ?"
+    #define SEPARATOR_REGEX SEPARATOR_REGEX_STA_ALL
 #endif
 
 
@@ -22,8 +23,12 @@ int get_index_sep(char *email)
     regex_t regex;
     regmatch_t match;
 
-    int reti = regcomp(&regex, SEPARATOR_REGEX_STA_ALL, REG_EXTENDED);
-    reti = regexec(&regex, email, 1, &match, 0);
+    if (regcomp(&regex, SEPARATOR_REGEX, REG_EXTENDED) != 0)
+        return -1;
+    int ret = regexec(&regex, email, 1, &match, 0);
+    regfree(&regex);
+    if (ret == REG_NOMATCH)
+        return -1;
     return match.rm_so;
 }
 
@@ -34,42 +39,66 @@ int find_char(char tok, char *str)
     return i;
 }
 
-void get_next_val(email_t *email)
+bool get_next_val(email_t *email)
 {
-    email->body = &email->body[email->last_index];
-    email->last_index = get_index_sep(email->body++);
-    email->body[email->last_index - 2] = '\0';
+    email->body += email->last_index;
+    int idx = get_index_sep(email->body + 1);
+    if (idx < 0)
+        return false;
+    email->last_index = idx + 1;  /* +1: idx is relative to body+1 */
+    if (email->last_index >= 2)
+        email->body[email->last_index - 2] = '\0';
+    return true;
 }
 
 email_t *new_email(char *raw)
 {
     email_t *tmp = malloc(sizeof(email_t));
+    if (!tmp)
+        return NULL;
     tmp->body = raw;
     tmp->last_index = 0;
     return tmp;
 }
 
-int get_file_size(FILE *fd)
+long get_file_size(FILE *fd)
 {
-    int size;
-
     fseek(fd, 0, SEEK_END);
-    size = ftell(fd);
+    long size = ftell(fd);
     rewind(fd);
     return size;
 }
 
 int main(int ac, char **av)
 {
+    if (ac < 2) {
+        fprintf(stderr, "Usage: %s <email_file>\n", av[0]);
+        return 1;
+    }
     FILE *fd = fopen(av[1], "rb");
-    int size = get_file_size(fd);
-    char *raw = malloc(sizeof(char) * size + 1);
+    if (!fd) {
+        perror(av[1]);
+        return 1;
+    }
+    long size = get_file_size(fd);
+    char *raw = malloc(size + 1);
+    if (!raw) {
+        fclose(fd);
+        return 1;
+    }
+    raw[size] = '\0';
     email_t *email = new_email(raw);
-
+    if (!email) {
+        free(raw);
+        fclose(fd);
+        return 1;
+    }
     fread(raw, size, 1, fd);
+    fclose(fd);
     get_next_val(email);
     get_next_val(email);
-    printf("%s\n", email->body);
     get_next_val(email);
+    free(email);
+    free(raw);
     return 0;
 }
