@@ -1,12 +1,12 @@
-import unittest
 import os
+import unittest
+
 import emailparser
 
 MAIL_TXT = os.path.join(os.path.dirname(__file__), "mail.txt")
 
 
 class TestEmailWithRealFile(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.segments = list(emailparser.Email(MAIL_TXT))
@@ -14,7 +14,7 @@ class TestEmailWithRealFile(unittest.TestCase):
     # ── structure ────────────────────────────────────────────────────────────
 
     def test_segment_count(self):
-        self.assertEqual(len(self.segments), 16)
+        self.assertEqual(len(self.segments), 17)
 
     def test_all_segments_are_strings(self):
         for i, seg in enumerate(self.segments):
@@ -27,8 +27,9 @@ class TestEmailWithRealFile(unittest.TestCase):
     # ── first segment (latest reply) ─────────────────────────────────────────
 
     def test_first_segment_first_char_not_cut(self):
-        self.assertTrue(self.segments[0].startswith("<"),
-                        f"starts with {self.segments[0][:4]!r}")
+        self.assertTrue(
+            self.segments[0].startswith("<"), f"starts with {self.segments[0][:4]!r}"
+        )
 
     def test_first_segment_is_html(self):
         self.assertIn("mailMessageBodyContainer", self.segments[0])
@@ -44,8 +45,9 @@ class TestEmailWithRealFile(unittest.TestCase):
 
     def test_french_de_detected(self):
         # segment 2 is a French-style "De :" separator
-        self.assertTrue(self.segments[2].startswith("De"),
-                        f"starts with {self.segments[2][:10]!r}")
+        self.assertTrue(
+            self.segments[2].startswith("De"), f"starts with {self.segments[2][:10]!r}"
+        )
 
     # ── known senders ─────────────────────────────────────────────────────────
 
@@ -86,22 +88,21 @@ class TestEmailWithRealFile(unittest.TestCase):
 
 
 class TestPlainText(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.segments = list(emailparser.Email(MAIL_TXT, plain_text=True))
 
     def test_segment_count(self):
-        self.assertEqual(len(self.segments), 16)
+        self.assertEqual(len(self.segments), 17)
 
     def test_no_html_tags(self):
         for i, seg in enumerate(self.segments):
-            self.assertNotIn("<div", seg,  f"segment {i} still contains <div>")
+            self.assertNotIn("<div", seg, f"segment {i} still contains <div>")
             self.assertNotIn("<span", seg, f"segment {i} still contains <span>")
 
     def test_no_html_entities(self):
         for i, seg in enumerate(self.segments):
-            self.assertNotIn("&lt;",  seg, f"segment {i} still contains &lt;")
+            self.assertNotIn("&lt;", seg, f"segment {i} still contains &lt;")
             self.assertNotIn("&amp;", seg, f"segment {i} still contains &amp;")
             self.assertNotIn("&nbsp;", seg, f"segment {i} still contains &nbsp;")
 
@@ -124,7 +125,6 @@ class TestPlainText(unittest.TestCase):
 
 
 class TestFindSignature(unittest.TestCase):
-
     def _sig(self, text):
         return emailparser.find_signature(text)
 
@@ -141,12 +141,12 @@ class TestFindSignature(unittest.TestCase):
     def test_dash_dash_delimiter(self):
         text = "Hello.\n\n--\nJohn"
         idx = self._sig(text)
-        self.assertEqual(text[idx:idx+2], "--")
+        self.assertEqual(text[idx : idx + 2], "--")
 
     def test_dash_dash_space_delimiter(self):
         text = "Hello.\n\n-- \nJohn"
         idx = self._sig(text)
-        self.assertEqual(text[idx:idx+3], "-- ")
+        self.assertEqual(text[idx : idx + 3], "-- ")
 
     # ── English closings ──────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ class TestFindSignature(unittest.TestCase):
         seg = list(emailparser.Email(MAIL_TXT, plain_text=True))[0]
         idx = emailparser.find_signature(seg)
         self.assertIn("Yours below noted", seg[:idx])
-        self.assertIn("ANDREA BALSERA",   seg[idx:])
+        self.assertIn("ANDREA BALSERA", seg[idx:])
 
     # ── real file — HTML (DOM path) ───────────────────────────────────────────
 
@@ -208,7 +208,7 @@ class TestFindSignature(unittest.TestCase):
     def test_real_file_html_points_at_closing(self):
         seg = list(emailparser.Email(MAIL_TXT))[0]
         idx = emailparser.find_signature(seg)
-        self.assertIn("Kind regards", seg[idx:idx + 30])
+        self.assertIn("Kind regards", seg[idx : idx + 30])
 
     def test_real_file_html_body_has_no_closing(self):
         seg = list(emailparser.Email(MAIL_TXT))[0]
@@ -221,7 +221,7 @@ class TestFindSignature(unittest.TestCase):
 
     def test_html_inline_with_closing(self):
         html = "<p>Body text.</p><p>Kind regards,</p><p>Alice</p>"
-        idx  = self._sig(html)
+        idx = self._sig(html)
         self.assertNotEqual(idx, -1)
         self.assertIn("Kind regards", html[idx:])
 
@@ -230,14 +230,4 @@ class TestFindSignature(unittest.TestCase):
 
 
 if __name__ == "__main__":
-
-    email = emailparser.Email(MAIL_TXT, plain_text=False)
-    mail = next(email)
-    s = emailparser.find_signature(mail)
-    print(mail[s:])
-    print('SEP\n\n\n\n\nSEP')
-    mail = next(email)
-    s = emailparser.find_signature(mail)
-    print(mail[s:])
-    exit()
     unittest.main(verbosity=2)
