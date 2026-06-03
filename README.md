@@ -2,14 +2,17 @@
 
 A C extension for Python that splits email reply chains into individual
 segments and extracts structured data from each one.
+
 This README has been generated with Claude Code.
 The code itself has been partially generated with Claude Code, especially the guards and error management as it turns out I find it highly efficient at those kind of tasks. The core logic is man-made but there is no strong re-reads of the modifications Claude made so there might be errors in there.
+
 Please find CONTRIBUTING.md, as it is a deep-dive documentation into the code.
 
 ---
 
 ## Table of contents
 
+0. [Installation & Quick Start](#0-installation)
 1. [Building](#1-building)
 2. [Concepts](#2-concepts)
 3. [The Email iterator](#3-the-email-iterator)
@@ -26,7 +29,22 @@ Please find CONTRIBUTING.md, as it is a deep-dive documentation into the code.
 9. [Source layout](#9-source-layout)
 
 ---
+## 0. Installation
+```bash
+pip install emailparser
+```
 
+Quick Start:
+```python
+from emailparser import Email
+
+chain_mail = Email(open('mail.html', 'r').read())
+print(next(chain_mail))
+```
+
+See a more detailed usage in [Section 8](#8-putting-it-all-together)
+
+---
 ## 1. Building
 
 ```bash
