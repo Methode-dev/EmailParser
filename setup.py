@@ -1,8 +1,11 @@
 import subprocess
-from setuptools import setup, Extension
+
+from setuptools import Extension, setup
+
 
 def xml2_config(flag):
     return subprocess.check_output(["xml2-config", flag]).decode().split()
+
 
 src = [
     "emailparser.c",
@@ -24,7 +27,18 @@ module = Extension(
 )
 
 setup(
-    name="emailparser",
-    version="0.1.0",
+    name="fastemailparser",
+    version="0.1.2",
+    author="Julien Calenge @ Méthode",
+    author_email="julien.calenge@methode.dev",
+    description="Very fast email parsing tool, split emails, retrieve headers & signatures",
+    long_description=open("README.md", "r").read(),
+    long_description_content_type="text/markdown",
+    url="https://github.com/Methode-dev/EmailParser",
+    classifiers=[
+        "Programming Language :: C",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
     ext_modules=[module],
 )

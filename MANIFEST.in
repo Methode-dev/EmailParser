@@ -1,0 +1,2 @@
+include email.h
+recursive-include src *.h
