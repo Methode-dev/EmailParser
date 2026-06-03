@@ -31,7 +31,7 @@ Please find CONTRIBUTING.md, as it is a deep-dive documentation into the code.
 ---
 ## 0. Installation
 ```bash
-pip install emailparser
+pip install fastemailparser
 ```
 
 Quick Start:
