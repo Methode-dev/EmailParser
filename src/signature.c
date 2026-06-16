@@ -211,6 +211,49 @@ static const char *block_start_from(const char *anchor_line,
     return block_start;
 }
 
+static Py_ssize_t find_contacts_in_range(const char *search_start,
+                                          const char *end,
+                                          const char *text_base,
+                                          const char *context_base) {
+    /*
+     * search_start: first line to check for contact anchors
+     * end: one-past-end of the search range
+     * text_base: start of the full segment (used by has_body_before)
+     * context_base: lower bound for block_start_from walkback
+     *
+     * description:
+     * scans [search_start, end) for a contact-info anchor line (phone,
+     * email, URL, or labeled field). when found, walks backward within
+     * [context_base, anchor) to find the start of the whole block.
+     * separating the search range from the walkback bound lets callers
+     * scan either the tail context (normal chain emails) or the head
+     * of the document (MIME emails where the body appears before large
+     * base64 attachments push the tail window away).
+     *
+     * return: byte offset relative to text_base, or -1 if not found
+     */
+    const char *p = search_start;
+    const char *ls;
+    size_t llen;
+    size_t clean;
+
+    while (p < end) {
+        ls = p;
+        while (p < end && *p != '\n')
+            p++;
+        llen = (size_t)(p - ls);
+        clean = (llen > 0 && ls[llen - 1] == '\r') ? llen - 1 : llen;
+        if (p < end)
+            p++;
+        if (is_contact_line(ls, clean)) {
+            const char *start = block_start_from(ls, context_base);
+            if (has_body_before(start, text_base))
+                return (Py_ssize_t)(start - text_base);
+        }
+    }
+    return -1;
+}
+
 static Py_ssize_t find_sig_by_contact(const char *text, size_t text_len) {
     /*
      * text: plain-text segment to search
@@ -225,31 +268,8 @@ static Py_ssize_t find_sig_by_contact(const char *text, size_t text_len) {
      *
      * return: byte offset of signature block start, or -1 if not found
      */
-    const char *context;
-    const char *p;
-    const char *end;
-    const char *ls;
-    size_t llen;
-    size_t clean;
-
-    context = find_context_start(text, text_len);
-    p = context;
-    end = text + text_len;
-    while (p < end) {
-        ls = p;
-        while (p < end && *p != '\n')
-            p++;
-        llen = (size_t)(p - ls);
-        clean = (llen > 0 && ls[llen - 1] == '\r') ? llen - 1 : llen;
-        if (p < end)
-            p++;
-        if (is_contact_line(ls, clean)) {
-            const char *start = block_start_from(ls, context);
-            if (has_body_before(start, text))
-                return (Py_ssize_t)(start - text);
-        }
-    }
-    return -1;
+    const char *context = find_context_start(text, text_len);
+    return find_contacts_in_range(context, text + text_len, text, context);
 }
 
 static int is_separator_line(const char *line, size_t len) {
@@ -449,6 +469,14 @@ static Py_ssize_t find_sig_in_plain(const char *text, size_t text_len) {
      *   signature) is near the top, followed by base64 attachment data that
      *   would push it outside the pass-1 context window.
      *
+     * pass 3 — first SIG_FALLBACK_LINES lines, contact-anchor detection.
+     *   same rationale as pass 2: raw MIME emails with attachments have the
+     *   contact block near the top, not in the tail window.
+     *
+     * pass 4 — last SIG_CONTEXT_LINES lines, contact-anchor detection.
+     *   handles long chain emails with no polite closing whose signature
+     *   sits at the bottom of the segment (the normal case).
+     *
      * return: byte offset of signature start relative to text, or -1
      */
     const char *full_end;
@@ -462,7 +490,7 @@ static Py_ssize_t find_sig_in_plain(const char *text, size_t text_len) {
     off = scan_lines(context, full_end, text, 0);
     if (off >= 0)
         return off;
-    /* Pass 2: scan first SIG_FALLBACK_LINES lines, strong patterns only */
+    /* Compute first SIG_FALLBACK_LINES boundary */
     fallback_end = text;
     count = 0;
     while (fallback_end < full_end && count < SIG_FALLBACK_LINES) {
@@ -471,12 +499,17 @@ static Py_ssize_t find_sig_in_plain(const char *text, size_t text_len) {
         fallback_end++;
     }
     if (fallback_end <= context) {
+        /* Pass 2: first SIG_FALLBACK_LINES lines, strong patterns only */
         off = scan_lines(text, fallback_end, text, 1);
         if (off >= 0)
             return off;
+        /* Pass 3: contact-anchor in first SIG_FALLBACK_LINES lines.
+           context_base = text so the walkback can reach the very first line. */
+        off = find_contacts_in_range(text, fallback_end, text, text);
+        if (off >= 0)
+            return off;
     }
-    /* Pass 3: contact-anchor detection for signatures without a polite closing
-       (phone number, email address, URL, or labeled field like "Tel:", "E:") */
+    /* Pass 4: contact-anchor in tail context (long segments, no closing phrase) */
     return find_sig_by_contact(text, text_len);
 }
 
