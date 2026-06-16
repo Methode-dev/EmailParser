@@ -28,7 +28,7 @@ module = Extension(
 
 setup(
     name="fastemailparser",
-    version="0.1.2",
+    version="0.2.1",
     author="Julien Calenge @ Méthode",
     author_email="julien.calenge@methode.dev",
     description="Very fast email parsing tool, split emails, retrieve headers & signatures",
