@@ -270,6 +270,14 @@ Extracts the header fields from any segment string.
 | `"bcc"` | `list[str]` | `[]` |
 | `"subject"` | `str \| None` | `None` |
 | `"date"` | `str \| None` | `None` |
+| `"message-id"` | `str \| None` | `None` |
+| `"thread-index"` | `str \| None` | `None` |
+| `"thread-topic"` | `str \| None` | `None` |
+
+`message-id`, `thread-index`, and `thread-topic` are present in the outermost
+MIME header block and are therefore most useful via `email.outer_headers`.
+Inner quoted segments rarely carry these fields, so they will return `None`
+for most `parse_headers()` calls on segments 1, 2, …
 
 Recognised field names (case-insensitive):
 

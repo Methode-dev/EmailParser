@@ -172,6 +172,93 @@ class TestFindSignature(unittest.TestCase):
     def test_regards_not_matched_mid_word(self):
         self.assertEqual(self._sig("regardsomething is a word"), -1)
 
+    # ── false-positive prevention ─────────────────────────────────────────────
+
+    def test_thanks_mid_body_not_matched(self):
+        self.assertEqual(
+            self._sig("Thanks for sending that over.\n\nLet me review."), -1)
+
+    def test_regards_to_all_not_matched(self):
+        self.assertEqual(
+            self._sig("I believe this is right.\n\nRegards to all."), -1)
+
+    def test_best_regards_wins_over_early_thanks(self):
+        text = "Hello.\n\nThanks for your email.\n\nBest regards,\nAlice"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("Best regards"))
+
+    # ── weak patterns (comma/period only) ────────────────────────────────────
+
+    def test_thanks_comma(self):
+        text = "Body.\n\nThanks,\nBob"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("Thanks,"))
+
+    def test_best_comma(self):
+        text = "Body.\n\nBest,\nAlice"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("Best,"))
+
+    # ── separator line detection ──────────────────────────────────────────────
+
+    def test_triple_dash_separator(self):
+        text = "Body.\n\n---\nAlice\nalice@example.com"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("---"))
+
+    def test_underscore_separator(self):
+        text = "Body.\n\n____\nAlice"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("____"))
+
+    # ── new compound and additional patterns ─────────────────────────────────
+
+    def test_thanks_and_best_regards(self):
+        text = "Body.\n\nThanks & best regards,\nAlice"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("Thanks & best regards"))
+
+    def test_all_the_best(self):
+        text = "Body.\n\nAll the best,\nAlice"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("All the best"))
+
+    def test_thank_you_very_much(self):
+        text = "Body.\n\nThank you very much,\nAlice"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("Thank you very much"))
+
+    # ── contact-pattern detection (no polite closing) ─────────────────────────
+
+    def test_bare_email_address(self):
+        text = "Body text.\n\nalice@example.com\n+1 234 567 8900"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("alice@example.com"))
+
+    def test_phone_number_block_walks_back_to_name(self):
+        text = "Body text.\n\nJohn Smith\nHusbandry Agent\n+1 234 567 8900"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("John Smith"))
+
+    def test_labeled_contact_field_walks_back(self):
+        text = "Body text.\n\nAndrea Balsera\nAgent\nE: andrea@example.com\nT: +351 966 076 737"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("Andrea Balsera"))
+
+    def test_url_line(self):
+        text = "Body text.\n\nJohn\nwww.example.com"
+        idx = self._sig(text)
+        self.assertNotEqual(idx, -1)
+
+    def test_polite_closing_takes_priority_over_contact(self):
+        text = "Body.\n\nKind regards,\nAlice\nalice@example.com"
+        idx = self._sig(text)
+        self.assertTrue(text[idx:].startswith("Kind regards"))
+
+    def test_phone_mid_body_not_matched(self):
+        text = "Please call +1 234 567 8900 for questions.\n\nLet me know."
+        self.assertEqual(self._sig(text), -1)
+
     # ── French closings ───────────────────────────────────────────────────────
 
     def test_cordialement(self):

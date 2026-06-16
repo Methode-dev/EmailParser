@@ -25,11 +25,13 @@ const char *canonical_key(const char *name, size_t len) {
         const char *raw;
         const char *key;
     } MAP[] = {
-        {"from", "from"},     {"reply-to", "from"}, {"to", "to"},
-        {"cc", "cc"},         {"bcc", "bcc"},       {"subject", "subject"},
-        {"date", "date"},     {"sent", "date"},     {"de", "from"},
-        {"a", "to"},          {"\xc3\x80", "to"},   {"\xc3\xa0", "to"},
-        {"objet", "subject"}, {"cci", "bcc"},       {"envoy\xc3\xa9", "date"},
+        {"from", "from"},           {"reply-to", "from"},     {"to", "to"},
+        {"cc", "cc"},               {"bcc", "bcc"},           {"subject", "subject"},
+        {"date", "date"},           {"sent", "date"},         {"de", "from"},
+        {"a", "to"},                {"\xc3\x80", "to"},       {"\xc3\xa0", "to"},
+        {"objet", "subject"},       {"cci", "bcc"},           {"envoy\xc3\xa9", "date"},
+        {"message-id", "message-id"}, {"thread-index", "thread-index"},
+        {"thread-topic", "thread-topic"},
         {NULL, NULL}};
     char lower[64];
     size_t n;
@@ -176,12 +178,14 @@ PyObject *py_parse_headers(PyObject *module, PyObject *args) {
      * all content is quoted-printable decoded before parsing.
      * lines are scanned until the first blank line (header/body separator).
      *
-     * return: Python dict with keys "from", "to", "cc", "bcc",
-     *         "subject", "date" (string fields default to None,
-     *         list fields default to [])
+     * return: Python dict with keys "from", "to", "cc", "bcc", "subject",
+     *         "date", "message-id", "thread-index", "thread-topic"
+     *         (string fields default to None, list fields default to [])
      */
     static const char *LIST_KEYS[] = {"to", "cc", "bcc", NULL};
-    static const char *STR_KEYS[] = {"from", "subject", "date", NULL};
+    static const char *STR_KEYS[] = {
+        "from", "subject", "date", "message-id", "thread-index",
+        "thread-topic", NULL};
     const char *text;
     Py_ssize_t text_len;
     int is_html;

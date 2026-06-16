@@ -60,7 +60,8 @@ char *skip_mime_headers(char *raw) {
      * description:
      * if the buffer begins with email headers (not HTML), advances past
      * the first blank line so chain-separator search starts from the
-     * actual body. limited to the first 8 KB to avoid scanning large files.
+     * actual body. scans until the first blank line with no byte limit —
+     * modern emails with ARC/DKIM chains can have headers beyond 16 KB.
      *
      * return: pointer to body start, equal to raw if nothing was skipped
      */
@@ -74,8 +75,6 @@ char *skip_mime_headers(char *raw) {
             return p + 2;
         if (p[0] == '\r' && p[1] == '\n' && p[2] == '\r' && p[3] == '\n')
             return p + 4;
-        if ((size_t)(p - raw) > 8192)
-            break;
         p++;
     }
     return raw;
